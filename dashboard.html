@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title> IoT Beast Application 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">SISTec IoT Application 2026</h1>
+        <div class="font-semibold">Welcome, <span id="usernameDisplay">User</span>!</div>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        
+        <!-- Section 1: Latest Readings -->
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <h3 class="text-gray-500 font-bold mb-2">LATEST TEMPERATURE</h3>
+                <div id="latestTemp" class="text-5xl font-black text-red-500">-- 'C</div>
+                <div id="latestDateTime" class="text-sm text-gray-400 mt-2">--</div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <h3 class="text-gray-500 font-bold mb-2">LATEST HUMIDITY</h3>
+                <div id="latestHum" class="text-5xl font-black text-blue-500">-- %</div>
+                <div id="latestDateTime2" class="text-sm text-gray-400 mt-2">--</div>
+            </div>
+        </div>
+
+        <!-- Section 2: LCD Text Input -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h3 class="text-lg font-bold mb-4">Send Text to LCD</h3>
+            <div class="flex gap-4">
+                <input type="text" id="lcdText" maxlength="16" placeholder="Enter up to 16 characters" 
+                       class="flex-1 px-4 py-2 border rounded-lg text-xl outline-none font-mono">
+                <button onclick="submitLCD()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-bold">
+                    SUBMIT TO LCD
+                </button>
+            </div>
+        </div>
+
+        <!-- Section 3: Data Table -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-bold mb-4">Saved Records</h3>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-700">
+                        <th class="p-3 border">#</th>
+                        <th class="p-3 border">Temperature</th>
+                        <th class="p-3 border">Humidity</th>
+                        <th class="p-3 border">Time</th>
+                        <th class="p-3 border">Date</th>
+                        <th class="p-3 border">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data injected via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Check Auth
+        fetch('/api/user').then(res => res.json()).then(data => {
+            if(data.error) window.location.href = '/index.html';
+            else document.getElementById('usernameDisplay').innerText = data.name;
+        });
+
+        // Fetch & Display Records
+        function loadData() {
+            fetch('/api/records').then(res => res.json()).then(data => {
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+                
+                if (data.length > 0) {
+                    let latest = data[data.length - 1];
+                    document.getElementById('latestTemp').innerText = latest.temperature + " 'C";
+                    document.getElementById('latestHum').innerText = latest.humidity + " %";
+                    let dtStr = `${latest.date} at ${latest.time}`;
+                    document.getElementById('latestDateTime').innerText = dtStr;
+                    document.getElementById('latestDateTime2').innerText = dtStr;
+                } else {
+                    document.getElementById('latestTemp').innerText = "-- 'C";
+                    document.getElementById('latestHum').innerText = "-- %";
+                }
+
+                data.forEach((row, index) => {
+                    let tr = `<tr>
+                        <td class="p-3 border">${index + 1}</td>
+                        <td class="p-3 border font-bold text-red-500">${row.temperature} 'C</td>
+                        <td class="p-3 border font-bold text-blue-500">${row.humidity} %</td>
+                        <td class="p-3 border">${row.time}</td>
+                        <td class="p-3 border">${row.date}</td>
+                        <td class="p-3 border">
+                            <button onclick="deleteRow(${row.id})" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Delete</button>
+                        </td>
+                    </tr>`;
+                    tbody.innerHTML += tr;
+                });
+            });
+        }
+
+        function deleteRow(id) {
+            fetch(`/api/records/${id}`, { method: 'DELETE' }).then(() => loadData());
+        }
+
+        function submitLCD() {
+            let text = document.getElementById('lcdText').value;
+            fetch('/api/lcd', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            }).then(() => {
+                alert("Text saved to lcd.txt!");
+                document.getElementById('lcdText').value = '';
+            });
+        }
+
+        // Auto-refresh data every 5 seconds
+        setInterval(loadData, 5000);
+        loadData();
+    </script>
+</body>
+</html>
